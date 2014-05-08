@@ -1,20 +1,18 @@
 #include <gtk/gtk.h>
 
-#define ENTER_KEY 65293
-#define UI_FILE   "gui.ui"
+#include "pam.h"
+
+#define ENTER_KEY    65293
+#define UI_FILE      "gui.ui"
 
 static GtkEntry *user_text_field;
 static GtkEntry *pass_text_field;
 
-static void login() {
-    const gchar *username = gtk_entry_get_text(user_text_field);
-    const gchar *password = gtk_entry_get_text(pass_text_field);
-    g_print("%s %s\n", username, password);
-}
-
 static gboolean key_event(GtkWidget *widget, GdkEventKey *event) {
     if (event->keyval == ENTER_KEY) {
-        login();
+        const gchar *username = gtk_entry_get_text(user_text_field);
+        const gchar *password = gtk_entry_get_text(pass_text_field);
+        login(username, password);
     }
     return FALSE;
 }
