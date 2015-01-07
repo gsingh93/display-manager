@@ -3,10 +3,9 @@
 
 #include <pwd.h>
 #include <paths.h>
-#include <sys/wait.h>
 
 #define SERVICE_NAME "display_manager"
-#define DISPLAY      ":0.0"
+#define DISPLAY      ":0"  // TODO: Set this in display-manager.c
 
 #define err(name)                                   \
     do {                                            \
@@ -25,8 +24,7 @@ static int conv(int num_msg, const struct pam_message **msg,
 
 static pam_handle_t *pam_handle;
 
-
-void login(const char *username, const char *password) {
+void login(const char *username, const char *password, pid_t *child_pid) {
     const char *data[2] = {username, password};
     struct pam_conv pam_conv = {
         conv, data
@@ -65,18 +63,18 @@ void login(const char *username, const char *password) {
     struct passwd *pw = getpwnam(username);
     init_env(pw);
 
-    pid_t child_pid = fork();
-    if (child_pid == 0) {
+    *child_pid = fork();
+    if (*child_pid == 0) {
         chdir(pw->pw_dir);
-        char *cmd = "exec /bin/bash -login ~/.xinitrc";
+        char *cmd = "exec /bin/bash --login ~/.xinitrc";
         execl(pw->pw_shell, pw->pw_shell, "-c", cmd, NULL);
+        printf("Failed to start window manager");
+        exit(1);
     }
+}
 
-    // Wait for child process to finish (wait for logout)
-    int status;
-    waitpid(child_pid, &status, 0); // TODO: Handle errors
-
-    result = pam_close_session(pam_handle, 0);
+void logout(void) {
+    int result = pam_close_session(pam_handle, 0);
     if (result != PAM_SUCCESS) {
         pam_setcred(pam_handle, PAM_DELETE_CRED);
         err("pam_close_session");
