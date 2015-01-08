@@ -14,20 +14,30 @@
 static GtkEntry *user_text_field;
 static GtkEntry *pass_text_field;
 
+void* login_thread(void *data) {
+    GtkWidget *widget = GTK_WIDGET(data);
+    const gchar *username = gtk_entry_get_text(user_text_field);
+    const gchar *password = gtk_entry_get_text(pass_text_field);
+
+    pid_t child_pid;
+    login(username, password, &child_pid);
+    gtk_widget_hide(widget);
+
+    // Wait for child process to finish (wait for logout)
+    int status;
+    waitpid(child_pid, &status, 0); // TODO: Handle errors
+    gtk_widget_show(widget);
+
+    logout();
+
+    return NULL;
+}
+
+static pthread_t thread;
+
 static gboolean key_event(GtkWidget *widget, GdkEventKey *event) {
     if (event->keyval == ENTER_KEY) {
-        const gchar *username = gtk_entry_get_text(user_text_field);
-        const gchar *password = gtk_entry_get_text(pass_text_field);
-
-        pid_t child_pid;
-        login(username, password, &child_pid);
-        gtk_widget_hide(widget);
-
-        // Wait for child process to finish (wait for logout)
-        int status;
-        waitpid(child_pid, &status, 0); // TODO: Handle errors
-
-        logout();
+        pthread_create(&thread, NULL, login_thread, (void*) widget);
     }
     return FALSE;
 }
