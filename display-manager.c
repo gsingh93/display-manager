@@ -10,11 +10,15 @@
 
 #define ENTER_KEY    65293
 #define UI_FILE      "gui.ui"
+#define DISPLAY      ":1"
+#define VT           "vt01"
+
+static bool testing = false;
 
 static GtkEntry *user_text_field;
 static GtkEntry *pass_text_field;
 
-void* login_thread(void *data) {
+static void* login_thread(void *data) {
     GtkWidget *widget = GTK_WIDGET(data);
     const gchar *username = gtk_entry_get_text(user_text_field);
     const gchar *password = gtk_entry_get_text(pass_text_field);
@@ -45,7 +49,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *event) {
 void start_x_server() {
     int pid = fork();
     if (pid == 0) {
-        char *cmd = "/usr/bin/X :0 vt01";
+        char *cmd = "/usr/bin/X " DISPLAY " " VT;
         execl("/bin/bash", "/bin/bash", "-c", cmd, NULL);
         printf("Failed to start X server");
         exit(1);
@@ -56,10 +60,10 @@ void start_x_server() {
 }
 
 int main(int argc, char *argv[]) {
-    bool testing = true;
     if (!testing) {
         start_x_server();
     }
+    setenv("DISPLAY", DISPLAY, true);
 
     gtk_init(&argc, &argv);
 

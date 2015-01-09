@@ -5,7 +5,6 @@
 #include <paths.h>
 
 #define SERVICE_NAME "display_manager"
-#define DISPLAY      ":0"  // TODO: Set this in display-manager.c
 
 #define err(name)                                   \
     do {                                            \
@@ -95,7 +94,7 @@ static void init_env(struct passwd *pw) {
     set_env("USER", pw->pw_name);
     set_env("LOGNAME", pw->pw_name);
     set_env("PATH", "/usr/local/sbin:/usr/local/bin:/usr/bin");
-    set_env("DISPLAY", DISPLAY);
+    //set_env("DISPLAY", DISPLAY);
     set_env("MAIL", _PATH_MAILDIR);
 
     char *xauthority = malloc(strlen(pw->pw_dir) + strlen("/.Xauthority") + 1);
