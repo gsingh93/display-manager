@@ -1,3 +1,4 @@
+#include <libgen.h> // dirname()
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -92,7 +93,12 @@ int main(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
 
     char ui_file_path[256];
-    getcwd(ui_file_path, sizeof(ui_file_path));
+    if (readlink("/proc/self/exe", ui_file_path, sizeof(ui_file_path)) == -1) {
+        printf("Error: could not get location of binary");
+        exit(1);
+    }
+
+    dirname(ui_file_path);
     strcat(ui_file_path, "/" UI_FILE);
     GtkBuilder *builder = gtk_builder_new_from_file(ui_file_path);
     GtkWidget *window = GTK_WIDGET(gtk_builder_get_object(builder, "window"));
