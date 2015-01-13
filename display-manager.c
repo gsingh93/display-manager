@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -9,6 +10,7 @@
 #include "pam.h"
 
 #define ENTER_KEY    65293
+#define ESC_KEY      65307
 #define UI_FILE      "gui.ui"
 #define DISPLAY      ":1"
 #define VT           "vt01"
@@ -18,7 +20,10 @@ static bool testing = false;
 static GtkEntry *user_text_field;
 static GtkEntry *pass_text_field;
 
-static void* login_thread(void *data) {
+static pthread_t login_thread;
+static pid_t x_server_pid;
+
+static void* login_func(void *data) {
     GtkWidget *widget = GTK_WIDGET(data);
     const gchar *username = gtk_entry_get_text(user_text_field);
     const gchar *password = gtk_entry_get_text(pass_text_field);
@@ -37,19 +42,20 @@ static void* login_thread(void *data) {
     return NULL;
 }
 
-static pthread_t thread;
-
 static gboolean key_event(GtkWidget *widget, GdkEventKey *event) {
     if (event->keyval == ENTER_KEY) {
-        pthread_create(&thread, NULL, login_thread, (void*) widget);
+        pthread_create(&login_thread, NULL, login_func, (void*) widget);
+    } else if (event->keyval == ESC_KEY) {
+        gtk_main_quit();
     }
     return FALSE;
 }
 
-void start_x_server() {
-    int pid = fork();
-    if (pid == 0) {
-        char *cmd = "/usr/bin/X " DISPLAY " " VT;
+void start_x_server(const char *display, const char *vt) {
+    x_server_pid = fork();
+    if (x_server_pid == 0) {
+        char cmd[32];
+        snprintf(cmd, sizeof(cmd), "/usr/bin/X %s %s", display, vt);
         execl("/bin/bash", "/bin/bash", "-c", cmd, NULL);
         printf("Failed to start X server");
         exit(1);
@@ -60,14 +66,23 @@ void start_x_server() {
 }
 
 int main(int argc, char *argv[]) {
-    if (!testing) {
-        start_x_server();
+    const char *display = DISPLAY;
+    const char *vt = VT;
+    if (argc == 3) {
+        display = argv[1];
+        vt = argv[2];
     }
-    setenv("DISPLAY", DISPLAY, true);
+    if (!testing) {
+        start_x_server(display, vt);
+    }
+    setenv("DISPLAY", display, true);
 
     gtk_init(&argc, &argv);
 
-    GtkBuilder *builder = gtk_builder_new_from_file(UI_FILE);
+    char ui_file_path[256];
+    getcwd(ui_file_path, sizeof(ui_file_path));
+    strcat(ui_file_path, "/" UI_FILE);
+    GtkBuilder *builder = gtk_builder_new_from_file(ui_file_path);
     GtkWidget *window = GTK_WIDGET(gtk_builder_get_object(builder, "window"));
     user_text_field = GTK_ENTRY(gtk_builder_get_object(builder,
                                                        "user_text_entry"));
@@ -82,6 +97,10 @@ int main(int argc, char *argv[]) {
     g_signal_connect(window, "key-release-event", G_CALLBACK(key_event), NULL);
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_main();
+
+    if (x_server_pid != 0) {
+        kill(x_server_pid, SIGKILL);
+    }
 
     return 0;
 }
