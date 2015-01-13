@@ -51,7 +51,7 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *event) {
     return FALSE;
 }
 
-void start_x_server(const char *display, const char *vt) {
+static void start_x_server(const char *display, const char *vt) {
     x_server_pid = fork();
     if (x_server_pid == 0) {
         char cmd[32];
@@ -65,6 +65,16 @@ void start_x_server(const char *display, const char *vt) {
     }
 }
 
+static void stop_x_server() {
+    if (x_server_pid != 0) {
+        kill(x_server_pid, SIGKILL);
+    }
+}
+
+static void sig_handler(int signo) {
+    stop_x_server();
+}
+
 int main(int argc, char *argv[]) {
     const char *display = DISPLAY;
     const char *vt = VT;
@@ -73,6 +83,8 @@ int main(int argc, char *argv[]) {
         vt = argv[2];
     }
     if (!testing) {
+        signal(SIGSEGV, sig_handler);
+        signal(SIGTRAP, sig_handler);
         start_x_server(display, vt);
     }
     setenv("DISPLAY", display, true);
@@ -98,9 +110,7 @@ int main(int argc, char *argv[]) {
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_main();
 
-    if (x_server_pid != 0) {
-        kill(x_server_pid, SIGKILL);
-    }
+    stop_x_server();
 
     return 0;
 }
