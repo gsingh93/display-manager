@@ -4,6 +4,8 @@
 #include <pwd.h>
 #include <paths.h>
 
+#include "pam.h"
+
 #define SERVICE_NAME "display_manager"
 
 #define err(name)                                   \
@@ -11,7 +13,7 @@
         fprintf(stderr, "%s: %s\n", name,           \
                 pam_strerror(pam_handle, result));  \
         end(result);                                \
-        return;                                     \
+        return false;                               \
     } while (1);                                    \
 
 static void init_env(struct passwd *pw);
@@ -23,7 +25,7 @@ static int conv(int num_msg, const struct pam_message **msg,
 
 static pam_handle_t *pam_handle;
 
-void login(const char *username, const char *password, pid_t *child_pid) {
+bool login(const char *username, const char *password, pid_t *child_pid) {
     const char *data[2] = {username, password};
     struct pam_conv pam_conv = {
         conv, data
@@ -71,9 +73,11 @@ void login(const char *username, const char *password, pid_t *child_pid) {
         printf("Failed to start window manager");
         exit(1);
     }
+
+    return true;
 }
 
-void logout(void) {
+bool logout(void) {
     int result = pam_close_session(pam_handle, 0);
     if (result != PAM_SUCCESS) {
         pam_setcred(pam_handle, PAM_DELETE_CRED);
@@ -86,6 +90,7 @@ void logout(void) {
     }
 
     end(result);
+    return true;
 }
 
 static void init_env(struct passwd *pw) {

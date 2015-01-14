@@ -20,6 +20,7 @@ static bool testing = false;
 
 static GtkEntry *user_text_field;
 static GtkEntry *pass_text_field;
+static GtkLabel *status_label;
 
 static pthread_t login_thread;
 static pid_t x_server_pid;
@@ -29,16 +30,23 @@ static void* login_func(void *data) {
     const gchar *username = gtk_entry_get_text(user_text_field);
     const gchar *password = gtk_entry_get_text(pass_text_field);
 
+    gtk_label_set_text(status_label, "Logging in...");
     pid_t child_pid;
-    login(username, password, &child_pid);
-    gtk_widget_hide(widget);
+    if (login(username, password, &child_pid)) {
+        gtk_widget_hide(widget);
 
-    // Wait for child process to finish (wait for logout)
-    int status;
-    waitpid(child_pid, &status, 0); // TODO: Handle errors
-    gtk_widget_show(widget);
+        // Wait for child process to finish (wait for logout)
+        int status;
+        waitpid(child_pid, &status, 0); // TODO: Handle errors
+        gtk_widget_show(widget);
 
-    logout();
+        gtk_label_set_text(status_label, "");
+
+        logout();
+    } else {
+        gtk_label_set_text(status_label, "Login error");
+    }
+    gtk_entry_set_text(pass_text_field, "");
 
     return NULL;
 }
@@ -106,6 +114,8 @@ int main(int argc, char *argv[]) {
                                                        "user_text_entry"));
     pass_text_field = GTK_ENTRY(gtk_builder_get_object(builder,
                                                        "pass_text_entry"));
+    status_label = GTK_LABEL(gtk_builder_get_object(builder, "status_label"));
+
     // Make full screen
     GdkScreen *screen = gdk_screen_get_default();
     gint height = gdk_screen_get_height(screen);
