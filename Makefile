@@ -1,7 +1,7 @@
 all: display-manager
 
 display-manager: display-manager.c pam.c
-	gcc `pkg-config --cflags --libs gtk+-3.0` -pthread -l pam -l X11 -Wall -o $@ $^
+	gcc -Wall -o $@ $^ `pkg-config --cflags --libs gtk+-3.0` -l pam
 
 .PHONY: clean
 
