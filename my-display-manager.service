@@ -1,0 +1,11 @@
+[Unit]
+Description=My Display Manager
+After=systemd-user-sessions.service getty@tty1.service plymouth-quit.service
+
+[Service]
+ExecStart=/home/gulshan/code/x11/display-manager/tmp/display-manager
+StandardOutput=syslog
+StandardError=inherit
+
+[Install]
+Alias=display-manager.service
