@@ -16,12 +16,41 @@
 #define USERNAME_ID "username_text_entry"
 #define PASSWORD_ID "password_text_entry"
 #define STATUS_ID   "status_label"
+#define DISPLAY     ":1"
+#define VT          "vt01"
+
+static bool testing = false;
 
 static GtkEntry *user_text_field;
 static GtkEntry *pass_text_field;
 static GtkLabel *status_label;
 
 static pthread_t login_thread;
+static pid_t x_server_pid;
+
+static void start_x_server(const char *display, const char *vt) {
+    x_server_pid = fork();
+    if (x_server_pid == 0) {
+        char cmd[32];
+        snprintf(cmd, sizeof(cmd), "/usr/bin/X %s %s", display, vt);
+        execl("/bin/bash", "/bin/bash", "-c", cmd, NULL);
+        printf("Failed to start X server");
+        exit(1);
+    } else {
+        // TODO: Wait for X server to start
+        sleep(1);
+    }
+}
+
+static void stop_x_server() {
+    if (x_server_pid != 0) {
+        kill(x_server_pid, SIGKILL);
+    }
+}
+
+static void sig_handler(int signo) {
+    stop_x_server();
+}
 
 static void* login_func(void *data) {
     GtkWidget *widget = GTK_WIDGET(data);
@@ -59,6 +88,19 @@ static gboolean key_event(GtkWidget *widget, GdkEventKey *event) {
 }
 
 int main(int argc, char *argv[]) {
+    const char *display = DISPLAY;
+    const char *vt = VT;
+    if (argc == 3) {
+        display = argv[1];
+        vt = argv[2];
+    }
+    if (!testing) {
+        signal(SIGSEGV, sig_handler);
+        signal(SIGTRAP, sig_handler);
+        start_x_server(display, vt);
+    }
+    setenv("DISPLAY", display, true);
+
     gtk_init(&argc, &argv);
 
     char ui_file_path[256];
@@ -85,6 +127,8 @@ int main(int argc, char *argv[]) {
     g_signal_connect(window, "key-release-event", G_CALLBACK(key_event), NULL);
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
     gtk_main();
+
+    stop_x_server();
 
     return 0;
 }
